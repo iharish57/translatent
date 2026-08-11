@@ -1,0 +1,72 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.65rem;
+
+  --background: #0f1216;
+  --foreground: #e8eaed;
+
+  --card: #171b21;
+  --card-foreground: #e8eaed;
+
+  --popover: #171b21;
+  --popover-foreground: #e8eaed;
+
+  --primary: #d97757;
+  --primary-foreground: #ffffff;
+
+  --secondary: #1e232b;
+  --secondary-foreground: #e8eaed;
+
+  --muted: #1e232b;
+  --muted-foreground: #9aa4b2;
+
+  --accent: #23282f;
+  --accent-foreground: #e8eaed;
+
+  --destructive: #c0503e;
+
+  --border: #2a3038;
+  --input: #2a3038;
+  --ring: #d97757;
+
+  --success: #4f8a68;
+  --warning: #c8952a;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
