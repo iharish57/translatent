@@ -22,14 +22,6 @@ export function ResultDialog({
   const data = entry?.data ?? null;
   const m = data?.metrics;
 
-  function requestClose() {
-    const ok = window.confirm(
-      "Close this translation? You can reopen it anytime from the list."
-    );
-    if (ok) onOpenChange(false);
-    return ok;
-  }
-
   async function handleCopy() {
     if (!data?.translation) return;
     try {
@@ -42,9 +34,9 @@ export function ResultDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && requestClose()}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       {open && data && m && (
-        <DialogContent onCloseAttempt={requestClose} className="p-0">
+        <DialogContent className="p-0">
           <DialogHeader className="flex-row items-center justify-between space-y-0">
             <DialogTitle>{entry?.title || "Translation result"}</DialogTitle>
             <div className="mr-8 flex shrink-0 items-center gap-2">

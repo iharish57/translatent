@@ -14,6 +14,15 @@ Preserve the source document's structure exactly in your translation:
 lists, keep the same list structure and markers (translate numbering \
 style naturally, e.g. Arabic-indic numerals to Arabic numerals) with one \
 item per line.
+- Standards/legal/technical documents often number clauses with multi-level \
+decimal IDs (e.g. "1.1", "3.2.1", "1.4.2.1"). Copy these exactly as given \
+in the source, digit-for-digit and in the same left-to-right numeral order \
+— never reorder, reverse, or truncate them — and keep each one paired with \
+its own clause. If the extracted source text looks like digits from such a \
+number got reordered or dropped (a known artifact of OCR/PDF extraction on \
+right-to-left documents), use the surrounding sequence to infer the \
+intended number and note the correction rather than propagating garbled \
+numbering.
 - Preserve headings, titles, and any tabular/columnar layout as separate \
 lines rather than merging everything into one paragraph.
 - Do not add structure that isn't in the source, and do not collapse \
@@ -65,18 +74,31 @@ discarding the whole word.
 a span as [illegible] when, after this level of effort, no defensible \
 reading exists — use it sparingly, for genuinely unrecoverable strokes, \
 not as a default for anything difficult.
+- Standards, legal, and technical documents (GSO/ISO-style specifications, \
+contracts, regulations) use multi-level decimal clause numbers as section \
+IDs — e.g. "1.1", "3.2.1", "1.4.2.1" — not simple bullets. Transcribe the \
+*entire* number exactly as printed, every digit and every period, never \
+collapsing it to a single digit or a generic "1." list marker. These \
+numbers are left-to-right digit runs embedded inside right-to-left Arabic \
+paragraphs; always read and transcribe their digits in normal left-to-right \
+numeral order (a clause printed "3.2.1" stays "3.2.1" — never reversed to \
+"1.2.3" and never truncated to "1"), even though the surrounding text and \
+the number's position on the line follow right-to-left flow. Keep each \
+clause number paired with its own clause text, one clause per line.
 
 Look carefully at the provided image and:
 1. Transcribe all Arabic text exactly as written, applying the above \
 approach to every handwritten, faint, or low-quality region.
 2. Preserve the document's structure in your transcription: keep the same \
 paragraph breaks, line breaks, bullet points/numbered lists (with their \
-markers), and headings as separate lines — don't merge everything into \
+markers), multi-level clause/section numbers (transcribed in full per the \
+rule above), and headings as separate lines — don't merge everything into \
 one run-on paragraph. If the document is a form, keep each label/value pair \
 on its own line in the same order they appear.
 3. Translate the transcribed text into English, mirroring that same \
-structure (paragraph breaks, bullets, numbering, headings, label/value \
-lines).
+structure (paragraph breaks, bullets, numbering, clause numbers, headings, \
+label/value lines). Clause numbers themselves are not translated — copy \
+them as-is next to their translated clause text.
 
 Respond ONLY with a single JSON object, no markdown fences, no extra text, \
 with exactly these fields:

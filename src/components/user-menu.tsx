@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { signOut } from "next-auth/react";
-import { LogOut, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { signOut, signIn } from "next-auth/react";
+import { LogOut, Loader2, UserRoundCog } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -17,6 +18,7 @@ export interface SessionUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
+  provider?: string | null;
 }
 
 function initials(user: SessionUser): string {
@@ -27,11 +29,28 @@ function initials(user: SessionUser): string {
 }
 
 export function UserMenu({ user }: { user: SessionUser }) {
+  const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const [switchingAccount, setSwitchingAccount] = useState(false);
+  const busy = signingOut || switchingAccount;
 
   async function handleSignOut() {
     setSigningOut(true);
     await signOut({ callbackUrl: "/login" });
+  }
+
+  async function handleSwitchAccount() {
+    setSwitchingAccount(true);
+    // Sign out of this app's session, then jump straight back into the
+    // same provider's sign-in flow — the account-chooser prompt configured
+    // on the provider means this lands on "pick an account" instead of
+    // silently re-authenticating as whoever was just signed out.
+    await signOut({ redirect: false });
+    if (user.provider) {
+      await signIn(user.provider, { callbackUrl: "/" });
+    } else {
+      router.push("/login");
+    }
   }
 
   return (
@@ -56,7 +75,11 @@ export function UserMenu({ user }: { user: SessionUser }) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" disabled={signingOut} onSelect={handleSignOut}>
+        <DropdownMenuItem disabled={busy} onSelect={handleSwitchAccount}>
+          {switchingAccount ? <Loader2 className="animate-spin" /> : <UserRoundCog />}
+          {switchingAccount ? "Switching..." : "Switch account"}
+        </DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" disabled={busy} onSelect={handleSignOut}>
           {signingOut ? <Loader2 className="animate-spin" /> : <LogOut />}
           {signingOut ? "Signing out..." : "Sign out"}
         </DropdownMenuItem>

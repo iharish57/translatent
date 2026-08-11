@@ -1,13 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Paperclip, SendHorizontal, X, FileText, AlertTriangle, Globe2, Loader2 } from "lucide-react";
+import {
+  Paperclip,
+  SendHorizontal,
+  X,
+  FileText,
+  AlertTriangle,
+  Globe2,
+  Loader2,
+  Eye,
+  Download,
+} from "lucide-react";
 import { toast } from "sonner";
+import { jsPDF } from "jspdf";
+import { Document, Packer, Paragraph, TextRun } from "docx";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupPillItem } from "@/components/ui/radio-group";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ResultDialog } from "@/components/result-dialog";
 import { UserMenu, type SessionUser } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
@@ -153,6 +171,9 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
             : it
         )
       );
+      if (!apiData.historyId) {
+        toast.warning("Translated, but couldn't save this to your account history — it will disappear if you sign out.");
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong.";
       setEntries((prev) => prev.map((it) => (it.id === localId ? { ...it, status: "error", error: message } : it)));
@@ -326,39 +347,102 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
   );
 }
 
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^\w\- ]+/g, "").trim().slice(0, 60) || "translation";
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadAsPdf(entry: HistoryEntry) {
+  const translation = entry.data?.translation;
+  if (!translation) return;
+
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const marginX = 48;
+  const marginY = 56;
+  const lineHeight = 15;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const maxWidth = doc.internal.pageSize.getWidth() - marginX * 2;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+
+  let y = marginY;
+  for (const line of doc.splitTextToSize(translation, maxWidth) as string[]) {
+    if (y > pageHeight - marginY) {
+      doc.addPage();
+      y = marginY;
+    }
+    doc.text(line, marginX, y);
+    y += lineHeight;
+  }
+
+  doc.save(`${sanitizeFilename(entry.title)}.pdf`);
+}
+
+async function downloadAsDocx(entry: HistoryEntry) {
+  const translation = entry.data?.translation;
+  if (!translation) return;
+
+  const paragraphs = translation
+    .split(/\n\n+/)
+    .map(
+      (block) =>
+        new Paragraph({
+          children: block.split("\n").map(
+            (line, i) => new TextRun({ text: line, break: i > 0 ? 1 : undefined })
+          ),
+        })
+    );
+
+  const doc = new Document({ sections: [{ children: paragraphs }] });
+  const blob = await Packer.toBlob(doc);
+  triggerDownload(blob, `${sanitizeFilename(entry.title)}.docx`);
+}
+
 function HistoryRow({ entry, onClick }: { entry: HistoryEntry; onClick: () => void }) {
   const clickable = entry.status === "done";
+  const hasResult = entry.status === "done" && !!entry.data;
 
   return (
-    <button
-      type="button"
-      onClick={clickable ? onClick : () => entry.error && toast.error(entry.error)}
-      className="flex w-full items-center gap-3.5 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-accent"
-    >
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary">
-        {entry.status === "error" ? (
-          <AlertTriangle className="size-4 text-destructive" />
-        ) : entry.status === "loading" ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <FileText className="size-4" />
-        )}
-      </div>
+    <div className="group flex w-full items-center gap-3.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-accent">
+      <button
+        type="button"
+        onClick={clickable ? onClick : () => entry.error && toast.error(entry.error)}
+        className="flex min-w-0 flex-1 items-center gap-3.5 text-left"
+      >
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary">
+          {entry.status === "error" ? (
+            <AlertTriangle className="size-4 text-destructive" />
+          ) : entry.status === "loading" ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <FileText className="size-4" />
+          )}
+        </div>
 
-      <div className="min-w-0 flex-1">
-        <div
-          dir="auto"
-          className={cn("truncate text-[0.98rem]", entry.status === "error" && "text-destructive")}
-        >
-          {entry.title || "Untitled"}
+        <div className="min-w-0 flex-1">
+          <div
+            dir="auto"
+            className={cn("truncate text-[0.98rem]", entry.status === "error" && "text-destructive")}
+          >
+            {entry.title || "Untitled"}
+          </div>
+          <div className="mt-0.5 text-[0.85rem] text-muted-foreground">
+            {entry.status === "loading" ? "Translating..." : entry.status === "error" ? "Failed" : "Me"}
+          </div>
         </div>
-        <div className="mt-0.5 text-[0.85rem] text-muted-foreground">
-          {entry.status === "loading" ? "Translating..." : entry.status === "error" ? "Failed" : "Me"}
-        </div>
-      </div>
+      </button>
 
       <div className="flex shrink-0 items-center gap-2.5 text-[0.85rem] text-muted-foreground">
-        {entry.status === "done" && entry.data && (
+        {hasResult && entry.data && (
           <span
             className={cn(
               "rounded-full border px-2.5 py-0.5 text-[0.72rem] font-bold",
@@ -370,11 +454,42 @@ function HistoryRow({ entry, onClick }: { entry: HistoryEntry; onClick: () => vo
             {entry.data.metrics.accuracyScore}
           </span>
         )}
+
+        {hasResult && (
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={onClick}
+              title="Preview"
+              aria-label="Preview"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              <Eye className="size-3.5" />
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  title="Download"
+                  aria-label="Download"
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
+                  <Download className="size-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => downloadAsPdf(entry)}>Download as PDF</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => downloadAsDocx(entry)}>Download as Word (.docx)</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
         <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-border bg-secondary px-2.5 py-1 text-[0.76rem]">
           {ENGINE_LABELS[entry.backend]}
         </span>
         <span className="min-w-16 text-right">{formatTime(entry.timestamp)}</span>
       </div>
-    </button>
+    </div>
   );
 }

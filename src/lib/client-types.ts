@@ -29,8 +29,9 @@ export const ENGINE_LABELS: Record<Backend, string> = {
 
 export const BACKEND_HINTS: Record<Backend, string> = {
   claude:
-    "Best quality; handles handwriting and poor scans via vision. Needs an API key with credits.",
+    "Best quality; handles handwriting, poor scans, and numbered legal/technical documents (e.g. clause numbers like 3.2.1) via vision. Needs an API key with credits.",
   google_free:
-    "Free, no key. Usually the best-quality free option, but an unofficial endpoint that can occasionally be rate-limited.",
-  mymemory: "Free, no key. Returns a genuine match/quality score instead of a heuristic.",
+    "Free, no key. Usually the best-quality free option, but an unofficial endpoint that can occasionally be rate-limited. Its OCR step struggles with small multi-level clause numbers in dense standards/legal documents — use Claude for those.",
+  mymemory:
+    "Free, no key. Returns a genuine match/quality score instead of a heuristic. Same OCR limitation as Google on numbered legal/technical documents — use Claude for those.",
 };

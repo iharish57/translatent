@@ -11,6 +11,11 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      // Without this, Google silently re-signs the user into whichever
+      // account is already active in the browser instead of showing the
+      // account chooser — making it impossible to pick a different account
+      // at sign-in without first signing out of Google itself.
+      authorization: { params: { prompt: "select_account" } },
     })
   );
 }
@@ -23,6 +28,8 @@ if (process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET) {
       issuer: process.env.AZURE_AD_TENANT_ID
         ? `https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}/v2.0`
         : undefined, // falls back to the multi-tenant "common" endpoint
+      // Same account-chooser reasoning as the Google provider above.
+      authorization: { params: { prompt: "select_account" } },
     })
   );
 }
@@ -45,25 +52,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, account, profile }) {
-      // Only runs on initial sign-in (when `account`/`profile` are present),
-      // not on every request — so this DB write happens once per login, not
-      // once per page view.
       if (account && profile?.email) {
+        token.provider = account.provider;
+      }
+
+      // Runs on initial sign-in (account/profile present) *and* on every
+      // later request that reads the session, as long as userId is still
+      // missing. A transient Mongo hiccup at login time used to leave the
+      // whole session permanently without a userId — history would silently
+      // stop saving until the next full logout/login. Retrying here means a
+      // brief outage self-heals on the very next page load instead.
+      const email = profile?.email ?? token.email;
+      if (!token.userId && email) {
         try {
-          const userId = await getOrCreateUser({
-            email: profile.email,
-            name: profile.name as string | undefined,
-            image: (profile.picture as string | undefined) ?? (profile.image as string | undefined),
-            provider: account.provider,
+          token.userId = await getOrCreateUser({
+            email,
+            name: (profile?.name as string | undefined) ?? token.name,
+            image:
+              (profile?.picture as string | undefined) ??
+              (profile?.image as string | undefined) ??
+              token.picture,
+            provider: (account?.provider as string | undefined) ?? (token.provider as string | undefined),
           });
-          token.userId = userId;
         } catch (err) {
-          // Don't hard-fail sign-in if Mongo is briefly unavailable — the
-          // session still works, just without a persisted user id (history
-          // saves will fail gracefully and surface a toast instead).
+          // Don't hard-fail sign-in/session refresh if Mongo is briefly
+          // unavailable — the session still works, just without a
+          // persisted user id until a later request retries successfully.
           console.error("Failed to upsert user in MongoDB:", err);
         }
-        token.provider = account.provider;
       }
       return token;
     },
