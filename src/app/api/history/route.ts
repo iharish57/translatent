@@ -10,8 +10,17 @@ const HISTORY_LIMIT = 200;
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  if (!session.user.id) {
+    // Signed in via SSO, but the Mongo-backed account record hasn't been
+    // created/linked yet (usually a transient DB hiccup at login) — this is
+    // not the same as being logged out, so don't tell the user that.
+    return NextResponse.json(
+      { error: "Still finishing account setup — refresh in a moment." },
+      { status: 503 }
+    );
   }
 
   try {
@@ -55,8 +64,14 @@ export async function GET() {
 
 export async function DELETE(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  if (!session.user.id) {
+    return NextResponse.json(
+      { error: "Still finishing account setup — refresh in a moment." },
+      { status: 503 }
+    );
   }
 
   const id = req.nextUrl.searchParams.get("id");

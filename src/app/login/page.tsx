@@ -1,11 +1,13 @@
 import { Languages, AlertCircle } from "lucide-react";
 import { getConfiguredProviders } from "@/lib/auth-providers";
 import { SignInButtons } from "@/components/sign-in-buttons";
+import { EmailAuthForm } from "@/components/email-auth-form";
 
 const ERROR_MESSAGES: Record<string, string> = {
   OAuthSignin: "Couldn't start the sign-in flow. Please try again.",
   OAuthCallback: "Sign-in didn't complete. Please try again.",
   OAuthAccountNotLinked: "This email is already linked to a different sign-in method.",
+  CredentialsSignin: "Incorrect email or password.",
   AccessDenied: "Access was denied.",
   Configuration: "Sign-in isn't configured correctly. Check the server's environment variables.",
   Default: "Something went wrong signing you in. Please try again.",
@@ -42,6 +44,16 @@ export default async function LoginPage({
         )}
 
         <SignInButtons providers={providers} callbackUrl={callbackUrl} />
+
+        {providers.length > 0 && (
+          <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="h-px flex-1 bg-border" />
+            OR
+            <div className="h-px flex-1 bg-border" />
+          </div>
+        )}
+
+        <EmailAuthForm callbackUrl={callbackUrl} />
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           By continuing, you agree that translated documents are processed by third-party

@@ -11,6 +11,7 @@ import {
   Loader2,
   Eye,
   Download,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
@@ -124,6 +125,50 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
     el.style.height = Math.min(el.scrollHeight, 160) + "px";
   }
 
+  async function submitTranslation(
+    entryId: string,
+    submission: { file: File | null; text: string; backend: Backend; apiKey: string }
+  ) {
+    const formData = new FormData();
+    if (submission.file) formData.append("file", submission.file);
+    if (submission.text) formData.append("text", submission.text);
+    formData.append("backend", submission.backend);
+    formData.append("api_key", submission.apiKey);
+
+    try {
+      const res = await fetch("/api/translate", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+
+      const apiData = data as TranslateApiResponse;
+      setEntries((prev) =>
+        prev.map((it) =>
+          it.id === entryId
+            ? { ...entryFromApiResponse(apiData), id: apiData.historyId ?? entryId }
+            : it
+        )
+      );
+      if (!apiData.historyId) {
+        toast.warning("Translated, but couldn't save this to your account history — it will disappear if you sign out.");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      setEntries((prev) =>
+        prev.map((it) =>
+          it.id === entryId
+            ? {
+                ...it,
+                status: "error",
+                error: message,
+                retry: { file: submission.file, text: submission.text },
+              }
+            : it
+        )
+      );
+      toast.error(message);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const typedText = text.trim();
@@ -135,6 +180,7 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
 
     const localId = `pending-${++idCounter}`;
     const title = file ? file.name : typedText;
+    const submission = { file, text: typedText, backend, apiKey: apiKey.trim() };
     const entry: HistoryEntry = {
       id: localId,
       status: "loading",
@@ -143,44 +189,37 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
       timestamp: new Date(),
       data: null,
       error: null,
+      retry: { file: submission.file, text: submission.text },
     };
     setEntries((prev) => [entry, ...prev]);
-
-    const formData = new FormData();
-    if (file) formData.append("file", file);
-    if (typedText) formData.append("text", typedText);
-    formData.append("backend", backend);
-    formData.append("api_key", apiKey.trim());
 
     setFile(null);
     setText("");
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setSending(true);
+    await submitTranslation(localId, submission);
+    setSending(false);
+  }
 
-    try {
-      const res = await fetch("/api/translate", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Something went wrong.");
-
-      const apiData = data as TranslateApiResponse;
-      setEntries((prev) =>
-        prev.map((it) =>
-          it.id === localId
-            ? { ...entryFromApiResponse(apiData), id: apiData.historyId ?? localId }
-            : it
-        )
-      );
-      if (!apiData.historyId) {
-        toast.warning("Translated, but couldn't save this to your account history — it will disappear if you sign out.");
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Something went wrong.";
-      setEntries((prev) => prev.map((it) => (it.id === localId ? { ...it, status: "error", error: message } : it)));
-      toast.error(message);
-    } finally {
-      setSending(false);
+  async function handleRetry(entry: HistoryEntry, retryBackend: Backend) {
+    if (!entry.retry || entry.status === "loading") return;
+    const { file: retryFile, text: retryText } = entry.retry;
+    if (retryBackend === "claude" && !apiKey.trim()) {
+      toast.error("An Anthropic API key is required — enter it above, then retry.");
+      return;
     }
+    setEntries((prev) =>
+      prev.map((it) =>
+        it.id === entry.id ? { ...it, status: "loading", error: null, backend: retryBackend } : it
+      )
+    );
+    await submitTranslation(entry.id, {
+      file: retryFile,
+      text: retryText,
+      backend: retryBackend,
+      apiKey: apiKey.trim(),
+    });
   }
 
   async function handleDelete(entry: HistoryEntry) {
@@ -252,7 +291,12 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
             <div key={label}>
               <div className="px-1.5 pt-3.5 pb-2 text-sm font-semibold text-muted-foreground">{label}</div>
               {groupEntries.map((entry) => (
-                <HistoryRow key={entry.id} entry={entry} onClick={() => setOpenEntryId(entry.id)} />
+                <HistoryRow
+                  key={entry.id}
+                  entry={entry}
+                  onClick={() => setOpenEntryId(entry.id)}
+                  onRetry={(retryBackend) => handleRetry(entry, retryBackend)}
+                />
               ))}
             </div>
           ))
@@ -407,9 +451,18 @@ async function downloadAsDocx(entry: HistoryEntry) {
   triggerDownload(blob, `${sanitizeFilename(entry.title)}.docx`);
 }
 
-function HistoryRow({ entry, onClick }: { entry: HistoryEntry; onClick: () => void }) {
+function HistoryRow({
+  entry,
+  onClick,
+  onRetry,
+}: {
+  entry: HistoryEntry;
+  onClick: () => void;
+  onRetry: (backend: Backend) => void;
+}) {
   const clickable = entry.status === "done";
   const hasResult = entry.status === "done" && !!entry.data;
+  const canRetry = entry.status === "error" && !!entry.retry;
 
   return (
     <div className="group flex w-full items-center gap-3.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-accent">
@@ -453,6 +506,32 @@ function HistoryRow({ entry, onClick }: { entry: HistoryEntry; onClick: () => vo
           >
             {entry.data.metrics.accuracyScore}
           </span>
+        )}
+
+        {canRetry && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                title="Retry translation"
+                aria-label="Retry translation"
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                <RotateCcw className="size-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {BACKENDS.map((b) => (
+                <DropdownMenuItem key={b} onClick={() => onRetry(b)}>
+                  Retry with {ENGINE_LABELS[b]}
+                  {b === entry.backend && (
+                    <span className="ml-1 text-muted-foreground">(last tried)</span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
         {hasResult && (

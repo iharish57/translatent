@@ -12,6 +12,11 @@ export interface HistoryEntry {
   timestamp: Date;
   data: TranslateApiResponse | null;
   error: string | null;
+  /** Original input, kept around so a failed entry can be resubmitted
+   * (optionally with a different engine) without the user re-typing text
+   * or re-attaching a file. Only set on entries created client-side (never
+   * on ones loaded from history). */
+  retry?: { file: File | null; text: string };
 }
 
 export const EXTRACTION_LABELS: Record<string, string> = {

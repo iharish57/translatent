@@ -6,8 +6,10 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
   const isLoginPage = pathname.startsWith("/login");
   const isApiRoute = pathname.startsWith("/api/");
+  // Account creation has to be reachable before the user has a session.
+  const isSignupApi = pathname === "/api/signup";
 
-  if (!isLoggedIn && !isLoginPage) {
+  if (!isLoggedIn && !isLoginPage && !isSignupApi) {
     if (isApiRoute) {
       return NextResponse.json({ error: "Not signed in." }, { status: 401 });
     }

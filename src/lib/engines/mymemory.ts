@@ -6,13 +6,23 @@ interface MyMemoryResponse {
   matches?: { match?: number | string }[];
 }
 
-async function rawMyMemoryTranslate(text: string): Promise<{ text: string; score: number | null }> {
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function rawMyMemoryTranslate(
+  text: string,
+  attempt = 0
+): Promise<{ text: string; score: number | null }> {
   const url =
     "https://api.mymemory.translated.net/get" +
     `?q=${encodeURIComponent(text)}&langpair=ar|en`;
 
   const res = await fetch(url);
   if (!res.ok) {
+    const isRetryable = res.status === 429 || res.status >= 500;
+    if (isRetryable && attempt < 2) {
+      await sleep(500 * 2 ** attempt);
+      return rawMyMemoryTranslate(text, attempt + 1);
+    }
     throw new Error(`MyMemory request failed: HTTP ${res.status}`);
   }
   const data = (await res.json()) as MyMemoryResponse;

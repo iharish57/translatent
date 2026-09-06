@@ -75,13 +75,10 @@ export function SignInButtons({
   }
 
   if (providers.length === 0) {
-    return (
-      <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
-        No sign-in providers are configured yet. Set Google, Microsoft, and/or Apple OAuth
-        credentials in <code className="rounded bg-muted px-1 py-0.5">.env.local</code> — see the
-        README for setup steps.
-      </div>
-    );
+    // Email/password sign-in (see EmailAuthForm) is always available, so
+    // there's nothing to configure just to unblock login here — this only
+    // means no *SSO* buttons show up.
+    return null;
   }
 
   return (
