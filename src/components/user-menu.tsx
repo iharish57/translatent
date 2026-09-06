@@ -44,9 +44,11 @@ export function UserMenu({ user }: { user: SessionUser }) {
     // Sign out of this app's session, then jump straight back into the
     // same provider's sign-in flow — the account-chooser prompt configured
     // on the provider means this lands on "pick an account" instead of
-    // silently re-authenticating as whoever was just signed out.
+    // silently re-authenticating as whoever was just signed out. Email/
+    // password accounts have no such prompt to jump back into (and no
+    // fields to silently resubmit), so just send those to the login form.
     await signOut({ redirect: false });
-    if (user.provider) {
+    if (user.provider && user.provider !== "credentials") {
       await signIn(user.provider, { callbackUrl: "/" });
     } else {
       router.push("/login");
