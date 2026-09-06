@@ -31,30 +31,45 @@ import { ResultDialog } from "@/components/result-dialog";
 import { UserMenu, type SessionUser } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
 import type { Backend, TranslateApiResponse } from "@/lib/types";
-import { BACKEND_HINTS, ENGINE_LABELS, type HistoryEntry } from "@/lib/client-types";
+import {
+  BACKEND_HINTS,
+  ENGINE_LABELS,
+  type HistoryEntry,
+} from "@/lib/client-types";
 
-const BACKENDS: Backend[] = ["claude", "google_free", "mymemory"];
+const BACKENDS: Backend[] = ["google_free", "mymemory", "claude"];
 
 function groupLabelFor(date: Date): string {
   const today = new Date();
   const isSameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
 
   if (isSameDay(date, today)) return "Today";
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
   if (isSameDay(date, yesterday)) return "Yesterday";
 
-  return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function entryFromApiResponse(data: TranslateApiResponse): HistoryEntry {
   return {
-    id: data.historyId ?? `local-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id:
+      data.historyId ??
+      `local-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     status: "done",
     title: data.fileName || data.sourceText.slice(0, 80) || "Untitled",
     backend: data.backend,
@@ -69,7 +84,7 @@ let idCounter = 0;
 export function TranslatorApp({ user }: { user: SessionUser }) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
-  const [backend, setBackend] = useState<Backend>("claude");
+  const [backend, setBackend] = useState<Backend>("google_free");
   const [apiKey, setApiKey] = useState("");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -79,7 +94,10 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const openEntry = useMemo(() => entries.find((e) => e.id === openEntryId) ?? null, [entries, openEntryId]);
+  const openEntry = useMemo(
+    () => entries.find((e) => e.id === openEntryId) ?? null,
+    [entries, openEntryId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -94,7 +112,9 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
         }
       } catch (err) {
         if (!cancelled) {
-          toast.error(err instanceof Error ? err.message : "Could not load history.");
+          toast.error(
+            err instanceof Error ? err.message : "Could not load history.",
+          );
         }
       } finally {
         if (!cancelled) setHistoryLoading(false);
@@ -127,7 +147,12 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
 
   async function submitTranslation(
     entryId: string,
-    submission: { file: File | null; text: string; backend: Backend; apiKey: string }
+    submission: {
+      file: File | null;
+      text: string;
+      backend: Backend;
+      apiKey: string;
+    },
   ) {
     const formData = new FormData();
     if (submission.file) formData.append("file", submission.file);
@@ -136,7 +161,10 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
     formData.append("api_key", submission.apiKey);
 
     try {
-      const res = await fetch("/api/translate", { method: "POST", body: formData });
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        body: formData,
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
 
@@ -144,15 +172,21 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
       setEntries((prev) =>
         prev.map((it) =>
           it.id === entryId
-            ? { ...entryFromApiResponse(apiData), id: apiData.historyId ?? entryId }
-            : it
-        )
+            ? {
+                ...entryFromApiResponse(apiData),
+                id: apiData.historyId ?? entryId,
+              }
+            : it,
+        ),
       );
       if (!apiData.historyId) {
-        toast.warning("Translated, but couldn't save this to your account history — it will disappear if you sign out.");
+        toast.warning(
+          "Translated, but couldn't save this to your account history — it will disappear if you sign out.",
+        );
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Something went wrong.";
+      const message =
+        err instanceof Error ? err.message : "Something went wrong.";
       setEntries((prev) =>
         prev.map((it) =>
           it.id === entryId
@@ -162,8 +196,8 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
                 error: message,
                 retry: { file: submission.file, text: submission.text },
               }
-            : it
-        )
+            : it,
+        ),
       );
       toast.error(message);
     }
@@ -180,7 +214,12 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
 
     const localId = `pending-${++idCounter}`;
     const title = file ? file.name : typedText;
-    const submission = { file, text: typedText, backend, apiKey: apiKey.trim() };
+    const submission = {
+      file,
+      text: typedText,
+      backend,
+      apiKey: apiKey.trim(),
+    };
     const entry: HistoryEntry = {
       id: localId,
       status: "loading",
@@ -206,13 +245,17 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
     if (!entry.retry || entry.status === "loading") return;
     const { file: retryFile, text: retryText } = entry.retry;
     if (retryBackend === "claude" && !apiKey.trim()) {
-      toast.error("An Anthropic API key is required — enter it above, then retry.");
+      toast.error(
+        "An Anthropic API key is required — enter it above, then retry.",
+      );
       return;
     }
     setEntries((prev) =>
       prev.map((it) =>
-        it.id === entry.id ? { ...it, status: "loading", error: null, backend: retryBackend } : it
-      )
+        it.id === entry.id
+          ? { ...it, status: "loading", error: null, backend: retryBackend }
+          : it,
+      ),
     );
     await submitTranslation(entry.id, {
       file: retryFile,
@@ -228,9 +271,12 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
       return;
     }
     try {
-      const res = await fetch(`/api/history?id=${encodeURIComponent(entry.data.historyId)}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/history?id=${encodeURIComponent(entry.data.historyId)}`,
+        {
+          method: "DELETE",
+        },
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not delete.");
       setEntries((prev) => prev.filter((it) => it.id !== entry.id));
@@ -263,7 +309,9 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
     <div className="mx-auto flex h-screen max-w-[880px] flex-col px-4">
       <header className="flex items-center justify-between border-b border-border py-5">
         <div>
-          <h1 className="text-[1.3rem] font-semibold">Arabic → English Translator</h1>
+          <h1 className="text-[1.3rem] font-semibold">
+            Arabic → English Translator
+          </h1>
           <p className="mt-1 text-[0.88rem] text-muted-foreground">
             Type Arabic text or attach a document to translate.
           </p>
@@ -280,7 +328,8 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
           <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
             <Globe2 className="mb-3 size-8" />
             <p className="max-w-[420px] text-[0.9rem]">
-              Type Arabic text below, or attach a PDF/image/scanned government document.
+              Type Arabic text below, or attach a PDF/image/scanned government
+              document.
             </p>
             <p className="mt-1 max-w-[420px] text-[0.8rem] opacity-80">
               Pick a translation engine at the bottom of the composer first.
@@ -289,7 +338,9 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
         ) : (
           groups.map(([label, groupEntries]) => (
             <div key={label}>
-              <div className="px-1.5 pt-3.5 pb-2 text-sm font-semibold text-muted-foreground">{label}</div>
+              <div className="px-1.5 pt-3.5 pb-2 text-sm font-semibold text-muted-foreground">
+                {label}
+              </div>
               {groupEntries.map((entry) => (
                 <HistoryRow
                   key={entry.id}
@@ -322,7 +373,7 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
           </div>
         )}
 
-        <div className="flex items-end gap-2">
+        <div className="flex items-center gap-2">
           <Button
             type="button"
             variant="outline"
@@ -351,16 +402,28 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
             onKeyDown={handleKeyDown}
             dir="auto"
             rows={1}
-            placeholder={file ? "Attached — press send to translate this document" : "Type Arabic text to translate..."}
+            placeholder={
+              file
+                ? "Attached — press send to translate this document"
+                : "Type Arabic text to translate..."
+            }
             className="max-h-40"
           />
-          <Button type="submit" size="icon" disabled={sending || (!file && !text.trim())} title="Translate">
+          <Button
+            type="submit"
+            size="icon"
+            disabled={sending || (!file && !text.trim())}
+            title="Translate"
+          >
             <SendHorizontal className="size-4" />
           </Button>
         </div>
 
         <div className="mt-2.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-2.5">
-          <RadioGroup value={backend} onValueChange={(v) => setBackend(v as Backend)}>
+          <RadioGroup
+            value={backend}
+            onValueChange={(v) => setBackend(v as Backend)}
+          >
             {BACKENDS.map((b) => (
               <RadioGroupPillItem key={b} value={b} id={`backend-${b}`}>
                 {ENGINE_LABELS[b]}
@@ -379,7 +442,9 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
             />
           )}
         </div>
-        <p className="mt-2 px-0.5 text-[0.76rem] text-muted-foreground">{BACKEND_HINTS[backend]}</p>
+        <p className="mt-2 px-0.5 text-[0.76rem] text-muted-foreground">
+          {BACKEND_HINTS[backend]}
+        </p>
       </form>
 
       <ResultDialog
@@ -392,7 +457,12 @@ export function TranslatorApp({ user }: { user: SessionUser }) {
 }
 
 function sanitizeFilename(name: string): string {
-  return name.replace(/[^\w\- ]+/g, "").trim().slice(0, 60) || "translation";
+  return (
+    name
+      .replace(/[^\w\- ]+/g, "")
+      .trim()
+      .slice(0, 60) || "translation"
+  );
 }
 
 function triggerDownload(blob: Blob, filename: string) {
@@ -435,16 +505,17 @@ async function downloadAsDocx(entry: HistoryEntry) {
   const translation = entry.data?.translation;
   if (!translation) return;
 
-  const paragraphs = translation
-    .split(/\n\n+/)
-    .map(
-      (block) =>
-        new Paragraph({
-          children: block.split("\n").map(
-            (line, i) => new TextRun({ text: line, break: i > 0 ? 1 : undefined })
+  const paragraphs = translation.split(/\n\n+/).map(
+    (block) =>
+      new Paragraph({
+        children: block
+          .split("\n")
+          .map(
+            (line, i) =>
+              new TextRun({ text: line, break: i > 0 ? 1 : undefined }),
           ),
-        })
-    );
+      }),
+  );
 
   const doc = new Document({ sections: [{ children: paragraphs }] });
   const blob = await Packer.toBlob(doc);
@@ -468,7 +539,9 @@ function HistoryRow({
     <div className="group flex w-full items-center gap-3.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-accent">
       <button
         type="button"
-        onClick={clickable ? onClick : () => entry.error && toast.error(entry.error)}
+        onClick={
+          clickable ? onClick : () => entry.error && toast.error(entry.error)
+        }
         className="flex min-w-0 flex-1 items-center gap-3.5 text-left"
       >
         <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary">
@@ -484,12 +557,19 @@ function HistoryRow({
         <div className="min-w-0 flex-1">
           <div
             dir="auto"
-            className={cn("truncate text-[0.98rem]", entry.status === "error" && "text-destructive")}
+            className={cn(
+              "truncate text-[0.98rem]",
+              entry.status === "error" && "text-destructive",
+            )}
           >
             {entry.title || "Untitled"}
           </div>
           <div className="mt-0.5 text-[0.85rem] text-muted-foreground">
-            {entry.status === "loading" ? "Translating..." : entry.status === "error" ? "Failed" : "Me"}
+            {entry.status === "loading"
+              ? "Translating..."
+              : entry.status === "error"
+                ? "Failed"
+                : "Me"}
           </div>
         </div>
       </button>
@@ -499,9 +579,12 @@ function HistoryRow({
           <span
             className={cn(
               "rounded-full border px-2.5 py-0.5 text-[0.72rem] font-bold",
-              entry.data.metrics.accuracyLabel === "High" && "border-success text-success",
-              entry.data.metrics.accuracyLabel === "Medium" && "border-warning text-warning",
-              entry.data.metrics.accuracyLabel === "Low" && "border-destructive text-destructive"
+              entry.data.metrics.accuracyLabel === "High" &&
+                "border-success text-success",
+              entry.data.metrics.accuracyLabel === "Medium" &&
+                "border-warning text-warning",
+              entry.data.metrics.accuracyLabel === "Low" &&
+                "border-destructive text-destructive",
             )}
           >
             {entry.data.metrics.accuracyScore}
@@ -526,7 +609,9 @@ function HistoryRow({
                 <DropdownMenuItem key={b} onClick={() => onRetry(b)}>
                   Retry with {ENGINE_LABELS[b]}
                   {b === entry.backend && (
-                    <span className="ml-1 text-muted-foreground">(last tried)</span>
+                    <span className="ml-1 text-muted-foreground">
+                      (last tried)
+                    </span>
                   )}
                 </DropdownMenuItem>
               ))}
@@ -557,8 +642,12 @@ function HistoryRow({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => downloadAsPdf(entry)}>Download as PDF</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => downloadAsDocx(entry)}>Download as Word (.docx)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => downloadAsPdf(entry)}>
+                  Download as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => downloadAsDocx(entry)}>
+                  Download as Word (.docx)
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -567,7 +656,9 @@ function HistoryRow({
         <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-border bg-secondary px-2.5 py-1 text-[0.76rem]">
           {ENGINE_LABELS[entry.backend]}
         </span>
-        <span className="min-w-16 text-right">{formatTime(entry.timestamp)}</span>
+        <span className="min-w-16 text-right">
+          {formatTime(entry.timestamp)}
+        </span>
       </div>
     </div>
   );
