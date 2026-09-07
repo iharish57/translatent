@@ -15,8 +15,8 @@
   --popover: #171b21;
   --popover-foreground: #e8eaed;
 
-  --primary: #d97757;
-  --primary-foreground: #ffffff;
+  --primary: #f5b942;
+  --primary-foreground: #1a1207;
 
   --secondary: #1e232b;
   --secondary-foreground: #e8eaed;
@@ -31,7 +31,7 @@
 
   --border: #2a3038;
   --input: #2a3038;
-  --ring: #d97757;
+  --ring: #f5b942;
 
   --success: #4f8a68;
   --warning: #c8952a;
