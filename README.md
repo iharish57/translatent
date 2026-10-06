@@ -1,6 +1,6 @@
 # Translatent
 
-An app for difficult arabic text recognition and language translation for heavy documents — saves time, makes them reachable and readable.
+An app for difficult Arabic text recognition and language translation for heavy documents — saves time, makes them reachable and readable.
 
 Type Arabic text directly, or upload a scanned document (PDF, PNG, JPG, TIFF, BMP, WEBP), and get a clean, structure-preserving English translation with an accuracy score, per-user history, and export to PDF/Word.
 
